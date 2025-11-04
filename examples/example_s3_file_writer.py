@@ -1,0 +1,171 @@
+"""
+Example: Writing Files to AWS S3
+
+This example demonstrates how to:
+1. Initialize S3 file writer with credentials and configuration
+2. Write JSON data to S3 with automatic path construction
+3. Write custom content with different suffixes
+4. Override default configuration per write operation
+
+Note: You need valid AWS credentials to run this example.
+"""
+
+import sys
+from pathlib import Path
+import json
+from datetime import datetime
+
+# Add parent directory to path to import metaagents
+sys.path.insert(0, str(Path(__file__).parent.parent))
+
+from metaagents.aws.s3.file_writer import metaagent as s3_writer
+
+
+def main():
+    print("=" * 60)
+    print("S3 File Writer Example")
+    print("=" * 60)
+
+    # IMPORTANT: Update these with your AWS credentials
+    AWS_ACCESS_KEY_ID = "your_access_key"
+    AWS_SECRET_ACCESS_KEY = "your_secret_key"
+    AWS_REGION = "us-east-1"
+    BUCKET = "xmtwin"
+    LOCATION = "water_utilities/flood_management/outputs"
+
+    # Step 1: Initialize S3 file writer
+    print("\n1. Initializing S3 file writer...")
+    result = s3_writer.on_create({
+        "aws_access_key_id": AWS_ACCESS_KEY_ID,
+        "aws_secret_access_key": AWS_SECRET_ACCESS_KEY,
+        "region_name": AWS_REGION,
+        "bucket": BUCKET,
+        "location": LOCATION,
+        "file_suffix": ".json"
+    })
+
+    if result['status'] == 'error':
+        print(f"   Error: {result['message']}")
+        return
+
+    print(f"   Status: {result['status']}")
+    print(f"   Region: {result['region']}")
+    print(f"   Bucket: {result['bucket']}")
+    print(f"   Location: {result['location']}")
+    print(f"   File suffix: {result['file_suffix']}")
+
+    # Step 2: Write JSON data
+    print("\n2. Writing JSON data to S3...")
+
+    # Create sample data
+    sample_data = {
+        "timestamp": datetime.now().isoformat(),
+        "simulation_id": "sim_001",
+        "results": {
+            "peak_flow": 125.5,
+            "total_volume": 1500.2,
+            "duration_hours": 3.5
+        },
+        "status": "completed"
+    }
+
+    write_result = s3_writer.on_receive({
+        "content": sample_data,  # Will be auto-converted to JSON
+        "key": "simulation_results_001"
+    })
+
+    if write_result['status'] == 'error':
+        print(f"   Error: {write_result['message']}")
+    else:
+        print(f"   Status: {write_result['status']}")
+        print(f"   S3 Path: {write_result['s3_path']}")
+        print(f"   Size: {write_result['size']} bytes")
+        print(f"   ETag: {write_result['etag']}")
+
+    # Step 3: Write string content
+    print("\n3. Writing string content to S3...")
+
+    string_content = "This is a test message\nWritten at: " + datetime.now().isoformat()
+
+    write_result2 = s3_writer.on_receive({
+        "content": string_content,
+        "key": "test_message_001"
+    })
+
+    if write_result2['status'] == 'error':
+        print(f"   Error: {write_result2['message']}")
+    else:
+        print(f"   Status: {write_result2['status']}")
+        print(f"   S3 Path: {write_result2['s3_path']}")
+        print(f"   Size: {write_result2['size']} bytes")
+
+    # Step 4: Write with custom suffix (override config)
+    print("\n4. Writing with custom suffix (.txt)...")
+
+    write_result3 = s3_writer.on_receive({
+        "content": "Log entry: Process completed successfully",
+        "key": "process_log",
+        "file_suffix": ".txt"  # Override the default .json suffix
+    })
+
+    if write_result3['status'] == 'error':
+        print(f"   Error: {write_result3['message']}")
+    else:
+        print(f"   Status: {write_result3['status']}")
+        print(f"   S3 Path: {write_result3['s3_path']}")
+
+    # Step 5: Write to custom location (override config)
+    print("\n5. Writing to custom location...")
+
+    write_result4 = s3_writer.on_receive({
+        "content": {"alert": "High water level detected"},
+        "key": "alert_001",
+        "location": "water_utilities/flood_management/alerts"  # Different location
+    })
+
+    if write_result4['status'] == 'error':
+        print(f"   Error: {write_result4['message']}")
+    else:
+        print(f"   Status: {write_result4['status']}")
+        print(f"   S3 Path: {write_result4['s3_path']}")
+
+    # Step 6: Write with timestamp-based key
+    print("\n6. Writing with timestamp-based key...")
+
+    timestamp_key = f"weather_data_{datetime.now().strftime('%Y%m%d_%H%M%S')}"
+    weather_data = {
+        "temperature": 22.5,
+        "humidity": 65,
+        "pressure": 1013.25,
+        "wind_speed": 5.2
+    }
+
+    write_result5 = s3_writer.on_receive({
+        "content": weather_data,
+        "key": timestamp_key
+    })
+
+    if write_result5['status'] == 'error':
+        print(f"   Error: {write_result5['message']}")
+    else:
+        print(f"   Status: {write_result5['status']}")
+        print(f"   S3 Path: {write_result5['s3_path']}")
+
+    # Cleanup
+    print("\n7. Cleaning up...")
+    s3_writer.on_destroy()
+
+    print("\n" + "=" * 60)
+    print("Example completed!")
+    print("\n")
+    print("Summary of files written:")
+    print(f"   1. {write_result.get('s3_path', 'N/A')}")
+    print(f"   2. {write_result2.get('s3_path', 'N/A')}")
+    print(f"   3. {write_result3.get('s3_path', 'N/A')}")
+    print(f"   4. {write_result4.get('s3_path', 'N/A')}")
+    print(f"   5. {write_result5.get('s3_path', 'N/A')}")
+    print("=" * 60)
+
+
+if __name__ == "__main__":
+    main()

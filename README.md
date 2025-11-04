@@ -21,6 +21,7 @@ These MetaAgents work together to simulate stormwater systems. They handle every
 ### AWS MetaAgents
 
 - **S3 File Access** - Reads and lists files stored in AWS S3 buckets
+- **S3 File Writer** - Writes files to AWS S3 buckets with configurable paths and file suffixes
 
 ## Quick Start
 
@@ -52,6 +53,7 @@ Check the `examples/` directory for complete working examples:
 - `example_weather_pipeline.py` - Complete weather generation and interpolation workflow
 - `example_swmm_simulation.py` - Running a SWMM simulation with custom weather
 - `example_s3_access.py` - Reading files from S3
+- `example_s3_file_writer.py` - Writing files to S3 with custom configurations
 
 ## Documentation
 
@@ -62,6 +64,7 @@ Each metaagent has its own README with detailed documentation:
 - [Weather to PySWMM](metaagents/utilities/weather_to_pyswmm/README.md)
 - [PySWMM Simulation](metaagents/simulation/pyswmm/README.md)
 - [S3 File Access](metaagents/aws/s3/file_access/README.md)
+- [S3 File Writer](metaagents/aws/s3/file_writer/README.md)
 
 ## MetaAgent Interface
 
