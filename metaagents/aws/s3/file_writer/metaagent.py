@@ -39,8 +39,6 @@ class S3WriterConfig:
     aws_secret_access_key: str
     region_name: str = "us-east-1"
     bucket: str = ""
-    location: str = ""  # Path prefix/folder in bucket
-    file_suffix: str = ".json"  # File extension to append
 
 
 @dataclass
@@ -103,33 +101,6 @@ def write_file_to_s3(s3_client: Any, bucket: str, key: str, content: str | bytes
         raise
 
 
-def build_s3_key(location: str, key: str, suffix: str) -> str:
-    """
-    Build the full S3 key from location, key, and suffix.
-
-    Args:
-        location: Path prefix/folder
-        key: Base file key/name
-        suffix: File extension
-
-    Returns:
-        Full S3 key path
-    """
-    # Ensure key has the suffix
-    if suffix and not key.endswith(suffix):
-        key = f"{key}{suffix}"
-
-    # Combine location and key
-    if location:
-        # Ensure location doesn't end with / and doesn't start with /
-        location = location.strip('/')
-        full_key = f"{location}/{key}"
-    else:
-        full_key = key
-
-    return full_key
-
-
 # --- Metaagent Interface Functions ---
 def on_create(data: dict[str, Any]) -> dict[str, Any]:
     """
@@ -140,9 +111,7 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
         "aws_access_key_id": "YOUR_ACCESS_KEY",
         "aws_secret_access_key": "YOUR_SECRET_KEY",
         "region_name": "us-east-1",  # optional, defaults to us-east-1
-        "bucket": "your-bucket-name",
-        "location": "path/prefix/folder",  # optional, path prefix in bucket
-        "file_suffix": ".json"  # optional, file extension (default: .json)
+        "bucket": "your-bucket-name"
     }
 
     Args:
@@ -158,8 +127,6 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
     aws_secret_access_key = data.get('aws_secret_access_key')
     region_name = data.get('region_name', 'us-east-1')
     bucket = data.get('bucket', '')
-    location = data.get('location', '')
-    file_suffix = data.get('file_suffix', '.json')
 
     if not aws_access_key_id or not aws_secret_access_key:
         return {
@@ -181,9 +148,7 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name=region_name,
-            bucket=bucket,
-            location=location,
-            file_suffix=file_suffix
+            bucket=bucket
         )
 
         # Create S3 client
@@ -197,14 +162,12 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
         _state.config = s3_config
         _state.s3_client = s3_client
 
-        logger.info(f"S3 file writer metaagent initialized: bucket={bucket}, location={location}, suffix={file_suffix}")
+        logger.info(f"S3 file writer metaagent initialized: bucket={bucket}")
 
         return {
             'status': 'initialized',
             'region': region_name,
-            'bucket': bucket,
-            'location': location,
-            'file_suffix': file_suffix
+            'bucket': bucket
         }
 
     except Exception as e:
@@ -217,21 +180,17 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
 
 def on_receive(data: dict[str, Any]) -> dict[str, Any]:
     """
-    Write content to S3 with the specified key.
+    Write content to S3 with the specified location and filename.
 
     Expected data format:
     {
         "content": "content to write",  # string or will be JSON serialized
-        "key": "filename",  # base filename (suffix will be appended from config)
-
-        # Optional overrides:
-        "bucket": "override-bucket",  # override configured bucket
-        "location": "override/path",  # override configured location
-        "file_suffix": ".txt"  # override configured suffix
+        "location": "path/to/folder",  # folder path in bucket
+        "filename": "file.json"  # filename with extension
     }
 
     Args:
-        data: Data dictionary with content and key
+        data: Data dictionary with content, location, and filename
 
     Returns:
         Results dictionary with write confirmation
@@ -249,7 +208,8 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
 
     # Extract required parameters
     content = data.get('content')
-    key = data.get('key')
+    location = data.get('location')
+    filename = data.get('filename')
 
     if content is None:
         return {
@@ -257,20 +217,25 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
             'message': 'content is required'
         }
 
-    if not key:
+    if not location:
         return {
             'status': 'error',
-            'message': 'key is required'
+            'message': 'location is required'
         }
 
-    # Get bucket, location, and suffix (allow overrides)
-    bucket = data.get('bucket', _state.config.bucket)
-    location = data.get('location', _state.config.location)
-    file_suffix = data.get('file_suffix', _state.config.file_suffix)
+    if not filename:
+        return {
+            'status': 'error',
+            'message': 'filename is required'
+        }
+
+    # Get bucket from config
+    bucket = _state.config.bucket
 
     try:
-        # Build full S3 key
-        full_key = build_s3_key(location, key, file_suffix)
+        # Build full S3 key from location and filename
+        location = location.strip('/')
+        full_key = f"{location}/{filename}" if location else filename
 
         # Convert content to string if it's not already
         if not isinstance(content, (str, bytes)):
@@ -283,6 +248,8 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
         return {
             'status': 'success',
             'bucket': bucket,
+            'location': location,
+            'filename': filename,
             'key': full_key,
             'size': write_result['size'],
             'etag': write_result['etag'],
