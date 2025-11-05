@@ -3,7 +3,7 @@ S3 File Writer Metaagent for XMPro DataStreams
 Jaun van Heerden, 2025
 
 A metaagent for writing files to AWS S3 buckets.
-Provides file writing capabilities with configurable path, suffix, and content.
+Provides simple file writing capabilities with content and key.
 
 Changelog:
     v0.1 - 2025/11/05 - Initial version with S3 file write capabilities
@@ -39,8 +39,6 @@ class S3WriterConfig:
     aws_secret_access_key: str
     region_name: str = "us-east-1"
     bucket: str = ""
-    location: str = ""  # Path prefix/folder in bucket
-    file_suffix: str = ".json"  # File extension to append
 
 
 @dataclass
@@ -103,33 +101,6 @@ def write_file_to_s3(s3_client: Any, bucket: str, key: str, content: str | bytes
         raise
 
 
-def build_s3_key(location: str, key: str, suffix: str) -> str:
-    """
-    Build the full S3 key from location, key, and suffix.
-
-    Args:
-        location: Path prefix/folder
-        key: Base file key/name
-        suffix: File extension
-
-    Returns:
-        Full S3 key path
-    """
-    # Ensure key has the suffix
-    if suffix and not key.endswith(suffix):
-        key = f"{key}{suffix}"
-
-    # Combine location and key
-    if location:
-        # Ensure location doesn't end with / and doesn't start with /
-        location = location.strip('/')
-        full_key = f"{location}/{key}"
-    else:
-        full_key = key
-
-    return full_key
-
-
 # --- Metaagent Interface Functions ---
 def on_create(data: dict[str, Any]) -> dict[str, Any]:
     """
@@ -140,9 +111,7 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
         "aws_access_key_id": "YOUR_ACCESS_KEY",
         "aws_secret_access_key": "YOUR_SECRET_KEY",
         "region_name": "us-east-1",  # optional, defaults to us-east-1
-        "bucket": "your-bucket-name",
-        "location": "path/prefix/folder",  # optional, path prefix in bucket
-        "file_suffix": ".json"  # optional, file extension (default: .json)
+        "bucket": "your-bucket-name"
     }
 
     Args:
@@ -158,8 +127,6 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
     aws_secret_access_key = data.get('aws_secret_access_key')
     region_name = data.get('region_name', 'us-east-1')
     bucket = data.get('bucket', '')
-    location = data.get('location', '')
-    file_suffix = data.get('file_suffix', '.json')
 
     if not aws_access_key_id or not aws_secret_access_key:
         return {
@@ -181,9 +148,7 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
             aws_access_key_id=aws_access_key_id,
             aws_secret_access_key=aws_secret_access_key,
             region_name=region_name,
-            bucket=bucket,
-            location=location,
-            file_suffix=file_suffix
+            bucket=bucket
         )
 
         # Create S3 client
@@ -197,14 +162,12 @@ def on_create(data: dict[str, Any]) -> dict[str, Any]:
         _state.config = s3_config
         _state.s3_client = s3_client
 
-        logger.info(f"S3 file writer metaagent initialized: bucket={bucket}, location={location}, suffix={file_suffix}")
+        logger.info(f"S3 file writer metaagent initialized: bucket={bucket}")
 
         return {
             'status': 'initialized',
             'region': region_name,
-            'bucket': bucket,
-            'location': location,
-            'file_suffix': file_suffix
+            'bucket': bucket
         }
 
     except Exception as e:
@@ -222,12 +185,7 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
     Expected data format:
     {
         "content": "content to write",  # string or will be JSON serialized
-        "key": "filename",  # base filename (suffix will be appended from config)
-
-        # Optional overrides:
-        "bucket": "override-bucket",  # override configured bucket
-        "location": "override/path",  # override configured location
-        "file_suffix": ".txt"  # override configured suffix
+        "key": "path/to/filename.ext"  # full S3 key including path and extension
     }
 
     Args:
@@ -263,31 +221,26 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
             'message': 'key is required'
         }
 
-    # Get bucket, location, and suffix (allow overrides)
-    bucket = data.get('bucket', _state.config.bucket)
-    location = data.get('location', _state.config.location)
-    file_suffix = data.get('file_suffix', _state.config.file_suffix)
+    # Get bucket (use configured bucket)
+    bucket = _state.config.bucket
 
     try:
-        # Build full S3 key
-        full_key = build_s3_key(location, key, file_suffix)
-
         # Convert content to string if it's not already
         if not isinstance(content, (str, bytes)):
             # Assume it's a dict/list that needs JSON serialization
             content = json.dumps(content, indent=2)
 
         # Write to S3
-        write_result = write_file_to_s3(_state.s3_client, bucket, full_key, content)
+        write_result = write_file_to_s3(_state.s3_client, bucket, key, content)
 
         return {
             'status': 'success',
             'bucket': bucket,
-            'key': full_key,
+            'key': key,
             'size': write_result['size'],
             'etag': write_result['etag'],
             'version_id': write_result.get('version_id'),
-            's3_path': f"s3://{bucket}/{full_key}"
+            's3_path': f"s3://{bucket}/{key}"
         }
 
     except Exception as e:
