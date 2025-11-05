@@ -208,8 +208,8 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
 
     # Extract required parameters
     content = data.get('content')
-    location = data.get('location')
-    filename = data.get('filename')
+    location = data.get('location', '').strip()
+    filename = data.get('filename', '').strip()
 
     if content is None:
         return {
@@ -234,8 +234,10 @@ def on_receive(data: dict[str, Any]) -> dict[str, Any]:
 
     try:
         # Build full S3 key from location and filename
+        # Clean up location (remove leading/trailing slashes)
         location = location.strip('/')
-        full_key = f"{location}/{filename}" if location else filename
+        # Always include location in path since it's required
+        full_key = f"{location}/{filename}"
 
         # Convert content to string if it's not already
         if not isinstance(content, (str, bytes)):
