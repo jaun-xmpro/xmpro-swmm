@@ -3,7 +3,9 @@
     "allow": [
       "Bash(git checkout:*)",
       "Bash(mkdir:*)",
-      "Bash(python -c:*)"
+      "Bash(python -c:*)",
+      "Bash(python resolve_conflicts.py:*)",
+      "Bash(git add:*)"
     ],
     "deny": [],
     "ask": []
