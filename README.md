@@ -21,7 +21,7 @@ These MetaAgents work together to simulate stormwater systems. They handle every
 ### AWS MetaAgents
 
 - **S3 File Access** - Reads and lists files stored in AWS S3 buckets
-- **S3 File Writer** - Writes files to AWS S3 buckets with configurable paths and file suffixes
+- **S3 File Writer** - Writes files to AWS S3 buckets (JSON, text, CSV, etc.)
 
 ## Quick Start
 

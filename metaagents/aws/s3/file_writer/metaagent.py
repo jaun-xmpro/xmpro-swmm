@@ -3,7 +3,7 @@ S3 File Writer Metaagent for XMPro DataStreams
 Jaun van Heerden, 2025
 
 A metaagent for writing files to AWS S3 buckets.
-Provides file writing capabilities with configurable path, suffix, and content.
+Provides simple file writing capabilities with content and key.
 
 Changelog:
     v0.1 - 2025/11/05 - Initial version with S3 file write capabilities

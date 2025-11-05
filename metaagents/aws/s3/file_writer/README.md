@@ -67,7 +67,7 @@ data = {
 }
 
 result = on_receive(data)
-# Writes to: s3://my-bucket/logs/process_log.txt
+# Writes to: s3://my-bucket/logs/process_log.txt"
 ```
 
 #### Writing to Different Locations
